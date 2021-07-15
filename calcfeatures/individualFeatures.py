@@ -4,6 +4,9 @@ import scipy
 
 from calcfeatures.base import BaseFeatures
 
+__all_feature_classes__ = ['size', 'shape']
+
+
 class IndividualFeatures(BaseFeatures):
     '''
     Given a region, extracts features based on individual segments (objects in segmentation mask)
@@ -13,6 +16,7 @@ class IndividualFeatures(BaseFeatures):
     '''
     def __init__(self,mask,image,**kwargs) -> None:
         super(IndividualFeatures,self).__init__(mask,image,**kwargs)
+        self.settings = kwargs
     def get_segments(self):
         self.segments=list()
         label, _ = scipy.ndimage.label(self.mask)
@@ -43,7 +47,22 @@ class IndividualFeatures(BaseFeatures):
             self.aggregate_features[f'{ftr}_std']=df_features[ftr].std()
             self.aggregate_features[f'{ftr}_skew']=df_features[ftr].skew()
             self.aggregate_features[f'{ftr}_kurtosis']=df_features[ftr].kurtosis()
-
+    def execute(self):
+        '''
+        Script to generate the features according to the settings determined
+        in kwargs when initializing the object. If settings are not determined,
+        default settings are used.
+        '''
+        feature_classes = self.settings.get('feature_classes',__all_feature_classes__)
+        aggregate = self.settings.get('aggregate',True)
+        self.get_segments()
+        for cl in feature_classes:
+            if cl in __all_feature_classes__:
+                getattr(self, f'get_{cl}_features')()
+        if aggregate:
+            self.aggregate_statistically()
+            return self.aggregate_features
+        return [s.features for s in self.segments]
 
 
 class IndividualSegment:
